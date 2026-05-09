@@ -1,0 +1,80 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { LessonIntro } from "@/components/lesson-intro";
+import { LessonSubtopics } from "@/components/lesson-subtopics";
+import { lessons } from "@/data/lesson-catalog";
+
+type LessonPageProps = {
+  params: Promise<{
+    slug: string;
+  }>;
+};
+
+export async function generateMetadata({
+  params,
+}: LessonPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const lesson = lessons.find((item) => item.slug === slug);
+
+  if (!lesson) {
+    return {
+      title: "Lesson Not Found | Chess Lessons",
+    };
+  }
+
+  return {
+    title: `${lesson.title} | Chess Lessons`,
+    description: lesson.description,
+  };
+}
+
+export function generateStaticParams() {
+  return lessons.map((lesson) => ({
+    slug: lesson.slug,
+  }));
+}
+
+export default async function LessonPage({ params }: LessonPageProps) {
+  const { slug } = await params;
+  const lesson = lessons.find((item) => item.slug === slug);
+
+  if (!lesson) {
+    notFound();
+  }
+
+  return (
+    <main className="px-6 py-16 text-stone-900 sm:py-20">
+      <article className="mx-auto max-w-4xl rounded-[2rem] border border-stone-200 bg-white px-8 py-12 shadow-sm sm:px-12">
+        <Link
+          href="/lessons"
+          className="text-sm font-medium text-emerald-700 transition hover:text-emerald-800"
+        >
+          ← Все уроки
+        </Link>
+        <h1 className="mt-6 text-4xl font-semibold tracking-tight sm:text-5xl">
+          {lesson.title}
+        </h1>
+        <p className="mt-5 text-lg leading-8 text-stone-600">
+          {lesson.description}
+        </p>
+        <LessonIntro slug={lesson.slug} content={lesson.content} />
+        {lesson.subtopics ? (
+          <LessonSubtopics lessonSlug={lesson.slug} subtopics={lesson.subtopics} />
+        ) : (
+          <section className="mt-10 rounded-[1.75rem] border border-stone-200 bg-stone-50 p-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+              Soon
+            </p>
+            <h2 className="mt-3 text-2xl font-semibold tracking-tight text-stone-900">
+              Урок в разработке
+            </h2>
+            <p className="mt-3 text-base leading-7 text-stone-600">
+              Скоро здесь появятся примеры, разбор позиций и практические задания.
+            </p>
+          </section>
+        )}
+      </article>
+    </main>
+  );
+}
