@@ -2,15 +2,15 @@ import Link from "next/link";
 
 export function NotFoundContent() {
   return (
-    <main className="min-h-screen bg-stone-100 px-6 py-20 text-stone-900">
-      <section className="mx-auto max-w-3xl rounded-[2rem] border border-stone-200 bg-white px-8 py-12 shadow-sm sm:px-12">
+    <main className="min-h-screen bg-stone-100 px-4 py-10 text-stone-900 sm:px-6 sm:py-16">
+      <section className="mx-auto max-w-3xl rounded-[2rem] border border-stone-200 bg-white px-5 py-8 shadow-sm sm:px-8 sm:py-12 lg:px-12">
         <p className="text-sm font-medium uppercase tracking-[0.28em] text-amber-700">
           Error 404
         </p>
         <h1 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
           Страница не найдена
         </h1>
-        <p className="mt-6 max-w-2xl text-lg leading-8 text-stone-600">
+        <p className="mt-5 max-w-2xl text-base leading-7 text-stone-600 sm:mt-6 sm:text-lg sm:leading-8">
           Похоже, такого адреса у нас пока нет. Вернитесь на главную или
           перейдите на страницу о проекте.
         </p>
