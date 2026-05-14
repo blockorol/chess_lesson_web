@@ -73,6 +73,9 @@ Important: lesson content lives in `src/data/lessons/*.ts`; `src/data/lesson-cat
 - `src/components/piece-level-practice.tsx` - interactive practice logic for levels 1-5
 - `src/components/chess-board.tsx` - shared `react-chessboard` wrapper; handles piece placement, arrows, highlights, drag/drop, overlays, responsive width
 - `src/components/check-and-checkmate-lesson.tsx` - custom lesson UI and generated tasks for check, checkmate, stalemate, and draw concepts
+- `src/components/opening-lesson.tsx` - custom lesson UI for "Как играть если не умеешь играть. Начало." with opening-development diagrams
+- `src/components/three-simple-questions-lesson.tsx` - custom lesson UI for "Три простых вопроса" with the decision checklist and practice prompt
+- `src/components/material-advantage-lesson.tsx` - custom lesson UI for converting material advantage into exchanges and winning plans
 - `src/components/not-found-content.tsx` - shared not-found content
 
 ### Chess Logic
@@ -140,6 +143,7 @@ Important: lesson content lives in `src/data/lessons/*.ts`; `src/data/lesson-cat
 - Change lesson page layout:
   - Start in `src/app/lessons/[slug]/page.tsx`.
   - Then inspect `LessonIntro`, `LessonSubtopics`, and `LessonPieceMoveLevels`.
+  - Custom lesson bodies currently include `CheckAndCheckmateLesson`, `OpeningLesson`, `ThreeSimpleQuestionsLesson`, and `MaterialAdvantageLesson`.
 
 - Change lesson index cards:
   - Start in `src/app/lessons/page.tsx` and `src/components/lesson-card.tsx`.

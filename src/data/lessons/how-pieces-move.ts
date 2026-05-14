@@ -3,7 +3,7 @@ import { appColors } from "@/lib/colors";
 
 export const howPiecesMove: Lesson = {
     slug: "how-pieces-move",
-    title: "Как ходят фигуры",
+    title: "1. Как ходят фигуры",
     short_description: "Базовое знакомство с фигурами и их движением по доске.",
     status: "published",
     content: [

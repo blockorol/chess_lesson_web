@@ -2,7 +2,7 @@ import type { Lesson } from "@/types/lesson";
 
 export const checkAndCheckmate: Lesson = {
   slug: "check-and-checkmate",
-  title: "Цель игры",
+  title: "2. Цель игры",
   short_description: "Разбираемся, что такое шах, мат, пат и ничья.",
   status: "published",
   content: [

@@ -4,6 +4,9 @@ import { notFound } from "next/navigation";
 import { CheckAndCheckmateLesson } from "@/components/check-and-checkmate-lesson";
 import { LessonIntro } from "@/components/lesson-intro";
 import { LessonSubtopics } from "@/components/lesson-subtopics";
+import { MaterialAdvantageLesson } from "@/components/material-advantage-lesson";
+import { OpeningLesson } from "@/components/opening-lesson";
+import { ThreeSimpleQuestionsLesson } from "@/components/three-simple-questions-lesson";
 import { lessons } from "@/data/lesson-catalog";
 
 type LessonPageProps = {
@@ -63,23 +66,38 @@ export default async function LessonPage({ params, searchParams }: LessonPagePro
         <p className="mt-5 text-lg leading-8 text-stone-600">
           {lesson.short_description}
         </p>
-        <LessonIntro slug={lesson.slug} content={lesson.content} />
-        {lesson.slug === "check-and-checkmate" ? (
-          <CheckAndCheckmateLesson showAdminLinks={resolvedSearchParams.admin === "true"} />
+
+        {lesson.slug === "how-to-play-the-opening" ? (
+          <OpeningLesson />
+        ) : lesson.slug === "material-advantage-to-win" ? (
+          <MaterialAdvantageLesson />
+        ) : lesson.slug === "three-simple-questions" ? (
+          <ThreeSimpleQuestionsLesson />
+        ) : lesson.slug === "check-and-checkmate" ? (
+          <>
+            <LessonIntro slug={lesson.slug} content={lesson.content} />
+            <CheckAndCheckmateLesson showAdminLinks={resolvedSearchParams.admin === "true"} />
+          </>
         ) : lesson.subtopics ? (
-          <LessonSubtopics lessonSlug={lesson.slug} subtopics={lesson.subtopics} />
+          <>
+            <LessonIntro slug={lesson.slug} content={lesson.content} />
+            <LessonSubtopics lessonSlug={lesson.slug} subtopics={lesson.subtopics} />
+          </>
         ) : (
-          <section className="mt-10 rounded-[1.75rem] border border-stone-200 bg-stone-50 p-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
-              Soon
-            </p>
-            <h2 className="mt-3 text-2xl font-semibold tracking-tight text-stone-900">
-              Урок в разработке
-            </h2>
-            <p className="mt-3 text-base leading-7 text-stone-600">
-              Скоро здесь появятся примеры, разбор позиций и практические задания.
-            </p>
-          </section>
+          <>
+            <LessonIntro slug={lesson.slug} content={lesson.content} />
+            <section className="mt-10 rounded-[1.75rem] border border-stone-200 bg-stone-50 p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                Soon
+              </p>
+              <h2 className="mt-3 text-2xl font-semibold tracking-tight text-stone-900">
+                Урок в разработке
+              </h2>
+              <p className="mt-3 text-base leading-7 text-stone-600">
+                Скоро здесь появятся примеры, разбор позиций и практические задания.
+              </p>
+            </section>
+          </>
         )}
       </article>
     </main>

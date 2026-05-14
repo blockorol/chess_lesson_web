@@ -2,7 +2,7 @@ import type { Lesson } from "@/types/lesson";
 
 export const howToCheckmate: Lesson = {
     slug: "how-to-checkmate",
-    title: "Ставим мат",
+    title: "6. Ставим мат",
     short_description: "Учимся доводить атаку до конца и видеть решающие идеи.",
     status: "in-development",
     content: [
