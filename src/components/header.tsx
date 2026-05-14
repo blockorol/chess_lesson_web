@@ -69,7 +69,7 @@ export function Header() {
                             {lesson.title}
                           </span>
                           <span className="mt-1 block text-sm leading-6 text-stone-600">
-                            {lesson.description}
+                            {lesson.short_description}
                           </span>
                         </Link>
                       </li>
@@ -130,7 +130,7 @@ export function Header() {
                             {lesson.title}
                           </span>
                           <span className="mt-1 block text-sm leading-6 text-stone-600">
-                            {lesson.description}
+                            {lesson.short_description}
                           </span>
                         </Link>
                       </li>

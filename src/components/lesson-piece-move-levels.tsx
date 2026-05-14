@@ -42,7 +42,7 @@ function HintTooltip({ notes }: { notes: string[] }) {
       >
         ?
       </button>
-      <div className="pointer-events-none absolute right-0 top-full z-20 mt-3 w-80 translate-y-2 rounded-[1.5rem] border border-stone-200 bg-white p-4 text-sm leading-7 text-stone-600 opacity-0 shadow-[0_24px_60px_rgba(28,25,23,0.12)] transition duration-200 peer-hover:translate-y-0 peer-hover:opacity-100 peer-focus-visible:translate-y-0 peer-focus-visible:opacity-100">
+      <div className="pointer-events-none absolute left-1/2 top-full z-20 mt-3 w-[min(20rem,calc(100vw-2rem))] -translate-x-1/2 translate-y-2 rounded-[1.5rem] border border-stone-200 bg-white p-4 text-sm leading-7 text-stone-600 opacity-0 shadow-[0_24px_60px_rgba(28,25,23,0.12)] transition duration-200 peer-hover:translate-y-0 peer-hover:opacity-100 peer-focus-visible:translate-y-0 peer-focus-visible:opacity-100 sm:left-auto sm:right-0 sm:w-80 sm:translate-x-0">
         <p className="font-semibold text-stone-950">Подсказка</p>
         <ul className="mt-3 space-y-2">
           {notes.map((note) => (
@@ -73,7 +73,7 @@ export function LessonPieceMoveLevels({
 
   return (
     <div className="space-y-8">
-      <section className="rounded-[1.75rem] bg-stone-50 p-6">
+      <section className="rounded-[1.75rem] bg-stone-50 p-4 sm:p-6">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
           1. Описание фигуры
         </p>
@@ -92,7 +92,7 @@ export function LessonPieceMoveLevels({
         </div>
       </section>
 
-      <section className="rounded-[1.75rem] bg-stone-50 p-6">
+      <section className="rounded-[1.75rem] bg-stone-50 p-4 sm:p-6">
         <div className="flex items-center justify-between gap-4">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
             {subtopic.piece === "S"
@@ -101,14 +101,14 @@ export function LessonPieceMoveLevels({
           </p>
           <HintTooltip notes={subtopic.demo.notes} />
         </div>
-        <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:items-start">
-          <div className="min-w-0">
+        <div className="mt-5 grid gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:items-start">
+          <div className="order-2 min-w-0 md:order-1">
             <PieceDemoBoard
               demo={subtopic.demo}
               boardId={`${lessonSlug}-${subtopic.slug}-demo`}
             />
           </div>
-          <div className="rounded-2xl border border-stone-200 bg-white p-5">
+          <div className="order-1 rounded-2xl border border-stone-200 bg-white p-4 sm:p-5 md:order-2">
             <ul className="space-y-2 text-stone-600">
               {subtopic.movementDescription.map((item) => (
                 <li key={item}>- {item}</li>
@@ -126,13 +126,13 @@ export function LessonPieceMoveLevels({
         </div>
       </section>
 
-      <section className="rounded-[1.75rem] bg-stone-50 p-6">
+      <section className="rounded-[1.75rem] bg-stone-50 p-4 sm:p-6">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
           3. Задание
         </p>
 
         {subtopic.practice.type === "piece-target" ? (
-          <div className="mt-5 space-y-5 rounded-[1.5rem] border border-stone-200 bg-white p-5">
+          <div className="mt-5 space-y-5 rounded-[1.5rem] border border-stone-200 bg-white p-4 sm:p-5">
             <div className="flex flex-wrap items-center gap-3">
               {availableLevels.map((level) => (
                 <button
@@ -191,7 +191,7 @@ export function LessonPieceMoveLevels({
             </div>
           </div>
         ) : (
-          <div className="mt-5 rounded-[1.5rem] border border-stone-200 bg-white p-5">
+          <div className="mt-5 rounded-[1.5rem] border border-stone-200 bg-white p-4 sm:p-5">
             <p className="text-sm leading-7 text-stone-600">
               {subtopic.practice.description}
             </p>

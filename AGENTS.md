@@ -2,94 +2,136 @@
 
 ## Project
 
-This is a frontend-only chess learning website.
+Frontend-only chess learning website for beginners.
 
-The site helps users learn chess through structured lessons and interactive chessboard exercises.
-
-There is no backend. All lessons, tasks and content are stored locally in the frontend codebase.
+The site teaches chess through structured lessons and interactive chessboard exercises. There is no backend: lesson content, tasks, and exercise configuration live in the frontend codebase.
 
 ## Tech Stack
 
-- Node.js
-- Next.js
+- Next.js App Router
+- React
 - TypeScript
 - Tailwind CSS
-- shadcn/ui
+- shadcn/ui conventions via `components.json`
 - chess.js
 - react-chessboard
-- Vercel for deployment
+- Vercel deployment
 
 ## Main Goals
 
-Build a simple, clean and maintainable educational website for chess beginners.
+Prioritize fast development, readable code, reusable components, simple data structures, mobile-friendly UI, and easy Vercel deployment.
 
-Prioritize:
-- fast development
-- readable code
-- reusable components
-- simple data structures
-- mobile-friendly UI
-- easy deployment to Vercel
+## Commands
 
-## Site Map
+- `npm run dev` - start local Next.js dev server
+- `npm run build` - production build
+- `npm run lint` - ESLint
 
-### `/`
+## High-Level Routes
 
-Home page.
+- `/` - currently redirects to `/lessons`
+- `/lessons` - lessons index, renders all lessons from `src/data/lesson-catalog.ts`
+- `/lessons/[slug]` - single lesson page, statically generated from lesson slugs
+- `/about` - static project/about page
+- `/404`, `not-found.tsx`, `[...not-found]` - not-found/redirect handling
 
-Should include:
-- project title
-- short explanation
-- call-to-action to start lessons
-- link to lessons list
+## Project Map
 
-### `/lessons`
+### App Router
 
-Lessons index page.
+- `src/app/layout.tsx` - root layout, global fonts, header, global metadata wrapper
+- `src/app/globals.css` - Tailwind/global styles
+- `src/app/page.tsx` - home entry point; redirects to `/lessons`
+- `src/app/lessons/page.tsx` - lessons index page
+- `src/app/lessons/[slug]/page.tsx` - lesson detail page; uses `generateStaticParams`, `generateMetadata`, `LessonIntro`, and `LessonSubtopics`
+- `src/app/about/page.tsx` - about page
+- `src/app/not-found.tsx` - Next.js not-found UI
+- `src/app/404/page.tsx` - explicit 404 route
+- `src/app/[...not-found]/page.tsx` - catch-all redirect handling
 
-Should include:
-- list of lessons
-- lesson cards
-- lesson title
-- short description
-- difficulty level
-- link to lesson page
+### Lesson Data And Types
 
-### `/lessons/[slug]`
+- `src/data/lesson-catalog.ts` - lesson aggregator/order only. It imports individual lesson files.
+- `src/data/lessons/*.ts` - canonical files for lesson content. Add or edit each lesson here.
+- `src/types/lesson.ts` - lesson shape: `Lesson`, `LessonSubtopic`, `LessonDemo`, `LessonPractice`, status and piece symbols.
+- `src/types/chessboard.ts` - board primitives: squares, pieces, board position, arrows.
 
-Single lesson page.
+Important: lesson content lives in `src/data/lessons/*.ts`; `src/data/lesson-catalog.ts` should stay small.
 
-Should include:
-- lesson title
-- lesson content
-- examples
-- optional interactive chess task
-- navigation back to lessons
+### Components
 
-## Components
+- `src/components/header.tsx` - top navigation and lesson links
+- `src/components/lesson-card.tsx` - card used on `/lessons`
+- `src/components/lesson-intro.tsx` - intro/content block for lesson pages
+- `src/components/lesson-subtopics.tsx` - accordion/list wrapper for lesson subtopics
+- `src/components/lesson-piece-move-levels.tsx` - UI shell for one piece/subtopic, level selection, demo/practice layout
+- `src/components/piece-demo-board.tsx` - non-interactive demo board for generated piece moves or custom positions
+- `src/components/piece-level-practice.tsx` - interactive practice logic for levels 1-5
+- `src/components/chess-board.tsx` - shared `react-chessboard` wrapper; handles piece placement, arrows, highlights, drag/drop, overlays, responsive width
+- `src/components/not-found-content.tsx` - shared not-found content
 
-### `ChessTaskBoard`
+### Chess Logic
 
-Interactive chessboard component.
+- `src/lib/chess.ts` - core board utilities and exercise helpers:
+  - converts placement strings like `Ke1` into board positions
+  - converts arrows for `react-chessboard`
+  - generates reachable squares by piece
+  - handles forbidden squares and capture targets
+  - finds shortest paths for multi-move practice
+  - creates random squares/targets
+- `src/lib/utils.ts` - `cn()` helper for Tailwind class merging
 
-Responsibilities:
-- show predefined chess position
-- allow user moves
-- validate moves using chess.js
-- show success/failure feedback
-- support simple tasks like “find the best move”
+### Public Assets
 
-### `LessonCard`
+- `public/*.svg` - default/static SVG assets from the starter app
+- `src/app/icon.svg`, `src/app/favicon.ico` - app icons
 
-Card component for lesson preview.
+## Common Change Paths
 
-### `Layout/Header`
+- Add a new lesson:
+  1. Create `src/data/lessons/<lesson-slug>.ts`.
+  2. Export a `Lesson` object with `slug`, `title`, `short_description`, `status`, and content fields.
+  3. Import it into `src/data/lesson-catalog.ts` and add it to the `lessons` array in display order.
 
-Simple navigation header.
+- Add a new lesson subtopic for piece movement:
+  1. Add a `subtopics` entry in `src/data/lesson-catalog.ts`.
+  2. Use `demo.type: "generated-piece"` for automatic move arrows, or `demo.type: "custom-position"` for explicit placements/arrows.
+  3. Use `practice.type: "piece-target"` for current interactive practice, or `coming-soon` for placeholder content.
 
-## Data
+- Change board visuals or drag/drop surface:
+  - Start in `src/components/chess-board.tsx`.
 
-Store lessons in:
+- Change legal movement, target generation, obstacles, or pathfinding:
+  - Start in `src/lib/chess.ts`.
+  - Then check `src/components/piece-level-practice.tsx`, which consumes those helpers.
 
-```txt
-src/data/lessons.ts
+- Change the five practice levels:
+  - Start in `src/components/piece-level-practice.tsx`.
+  - Level labels/descriptions are in `src/components/lesson-piece-move-levels.tsx`.
+
+- Change lesson page layout:
+  - Start in `src/app/lessons/[slug]/page.tsx`.
+  - Then inspect `LessonIntro`, `LessonSubtopics`, and `LessonPieceMoveLevels`.
+
+- Change lesson index cards:
+  - Start in `src/app/lessons/page.tsx` and `src/components/lesson-card.tsx`.
+
+## Data Conventions
+
+- Lesson slugs are the route ids.
+- Lesson cards and metadata use `short_description`.
+- Lesson `status` is `"published"` or `"in-development"`.
+- There is no lesson difficulty/level field.
+- Piece placement strings use a piece letter followed by a square, for example `Ke1`, `Ra1`, `pd4`.
+- Uppercase pieces are white; lowercase pieces are black.
+- Piece symbols used for lesson movement practice: `K`, `Q`, `R`, `B`, `N`, `P`.
+- `S` is used in lesson data for the "special moves" subtopic and is not a movable practice piece.
+- Board squares use algebraic coordinates from `a1` to `h8`.
+
+## Implementation Notes For Agents
+
+- Preserve existing user edits. This repo may have a dirty worktree.
+- Prefer small, local changes over broad refactors.
+- Use the existing data-first lesson model before introducing new state or routing.
+- Keep interactive chess behavior inside `src/lib/chess.ts` and board/practice components rather than scattering rules through pages.
+- Validate meaningful changes with `npm run lint` and, for route/data changes, `npm run build` when practical.

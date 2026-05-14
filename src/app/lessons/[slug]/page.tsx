@@ -25,7 +25,7 @@ export async function generateMetadata({
 
   return {
     title: `${lesson.title} | Chess Lessons`,
-    description: lesson.description,
+    description: lesson.short_description,
   };
 }
 
@@ -44,8 +44,8 @@ export default async function LessonPage({ params }: LessonPageProps) {
   }
 
   return (
-    <main className="px-4 py-10 text-stone-900 sm:px-6 sm:py-16">
-      <article className="mx-auto max-w-4xl rounded-[2rem] border border-stone-200 bg-white px-5 py-8 shadow-sm sm:px-8 sm:py-12 lg:px-12">
+    <main className="px-0 py-10 text-stone-900 sm:px-6 sm:py-16">
+      <article className="mx-auto max-w-4xl rounded-[2rem] border border-stone-200 bg-white px-4 py-8 shadow-sm sm:px-8 sm:py-12 lg:px-12">
         <Link
           href="/lessons"
           className="text-sm font-medium text-emerald-700 transition hover:text-emerald-800"
@@ -56,7 +56,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
           {lesson.title}
         </h1>
         <p className="mt-5 text-lg leading-8 text-stone-600">
-          {lesson.description}
+          {lesson.short_description}
         </p>
         <LessonIntro slug={lesson.slug} content={lesson.content} />
         {lesson.subtopics ? (

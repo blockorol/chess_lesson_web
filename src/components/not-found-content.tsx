@@ -2,8 +2,8 @@ import Link from "next/link";
 
 export function NotFoundContent() {
   return (
-    <main className="min-h-screen bg-stone-100 px-4 py-10 text-stone-900 sm:px-6 sm:py-16">
-      <section className="mx-auto max-w-3xl rounded-[2rem] border border-stone-200 bg-white px-5 py-8 shadow-sm sm:px-8 sm:py-12 lg:px-12">
+    <main className="min-h-screen bg-stone-100 px-0 py-10 text-stone-900 sm:px-6 sm:py-16">
+      <section className="mx-auto max-w-3xl rounded-[2rem] border border-stone-200 bg-white px-4 py-8 shadow-sm sm:px-8 sm:py-12 lg:px-12">
         <p className="text-sm font-medium uppercase tracking-[0.28em] text-amber-700">
           Error 404
         </p>

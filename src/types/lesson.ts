@@ -1,4 +1,4 @@
-export type LessonLevel = "beginner" | "intermediate" | "advanced";
+export type LessonStatus = "published" | "in-development";
 
 export type PieceLessonSymbol =
   | "K"
@@ -53,8 +53,8 @@ export type LessonSubtopic = {
 export type Lesson = {
   slug: string;
   title: string;
-  description: string;
-  level: LessonLevel;
+  short_description: string;
+  status: LessonStatus;
   content: string[];
   subtopics?: LessonSubtopic[];
 };

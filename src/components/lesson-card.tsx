@@ -1,36 +1,31 @@
 import Link from "next/link";
 import type { Lesson } from "@/types/lesson";
 
-const levelLabels: Record<Lesson["level"], string> = {
-  beginner: "Beginner",
-  intermediate: "Intermediate",
-  advanced: "Advanced",
-};
-
 type LessonCardProps = {
   lesson: Lesson;
 };
 
 export function LessonCard({ lesson }: LessonCardProps) {
-  const isInDevelopment = !lesson.subtopics;
+  const isInDevelopment = lesson.status === "in-development";
 
   return (
-    <article className="rounded-[1.75rem] border border-stone-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+    <article className="rounded-[1.75rem] border border-stone-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-6">
       <div className="flex flex-wrap items-center gap-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">
-          {levelLabels[lesson.level]}
-        </p>
-        {isInDevelopment ? (
-          <span className="inline-flex rounded-full border border-stone-200 bg-stone-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-600">
-            В разработке
-          </span>
-        ) : null}
+        <span
+          className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] ${
+            isInDevelopment
+              ? "border-stone-200 bg-stone-100 text-stone-600"
+              : "border-emerald-200 bg-emerald-50 text-emerald-700"
+          }`}
+        >
+          {isInDevelopment ? "В разработке" : "Доступен"}
+        </span>
       </div>
       <h2 className="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
         {lesson.title}
       </h2>
       <p className="mt-3 text-base leading-7 text-stone-600">
-        {lesson.description}
+        {lesson.short_description}
       </p>
       <Link
         href={`/lessons/${lesson.slug}`}

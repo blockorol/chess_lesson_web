@@ -38,14 +38,14 @@ export function LessonIntro({ slug, content }: LessonIntroProps) {
   }
 
   return (
-    <div className="mt-10 space-y-6">
+    <div className="mt-8 space-y-5 sm:mt-10 sm:space-y-6">
       {preset.intro.map((paragraph) => (
         <p key={paragraph} className="text-lg leading-8 text-stone-700">
           {paragraph}
         </p>
       ))}
 
-      <section className="rounded-[1.75rem] border border-stone-200 bg-stone-50 p-6">
+      <section className="rounded-[1.75rem] border border-stone-200 bg-stone-50 p-4 sm:p-6">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
           Как изучать этот урок
         </p>
@@ -64,7 +64,7 @@ export function LessonIntro({ slug, content }: LessonIntroProps) {
         </ol>
       </section>
 
-      <section className="rounded-[1.75rem] border border-stone-200 bg-white p-6">
+      <section className="rounded-[1.75rem] border border-stone-200 bg-white p-4 sm:p-6">
         <div className="space-y-4 text-lg leading-8 text-stone-700">
           {preset.outro.map((paragraph) => (
             <p key={paragraph}>{paragraph}</p>
