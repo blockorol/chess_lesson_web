@@ -1,4 +1,5 @@
 import type { Lesson } from "@/types/lesson";
+import { appColors } from "@/lib/colors";
 
 export const howPiecesMove: Lesson = {
     slug: "how-pieces-move",
@@ -217,10 +218,10 @@ export const howPiecesMove: Lesson = {
           type: "custom-position",
           placements: ["Ke1", "Ra1", "Rh1", "Pe2", "pd4"],
           arrows: [
-            { from: "e2", to: "e4", color: "rgba(37, 99, 235, 0.82)" },
-            { from: "d4", to: "e3", color: "rgba(220, 38, 38, 0.82)" },
-            { from: "e1", to: "g1", color: "rgba(5, 150, 105, 0.82)" },
-            { from: "e1", to: "c1", color: "rgba(168, 85, 247, 0.82)" },
+            { from: "e2", to: "e4", color: appColors.arrow.primary },
+            { from: "d4", to: "e3", color: appColors.arrow.dangerSoft },
+            { from: "e1", to: "g1", color: appColors.arrow.successSoft },
+            { from: "e1", to: "c1", color: appColors.arrow.special },
           ],
           notes: [
             "Синяя стрелка показывает двойной ход белой пешки: с e2 на e4.",

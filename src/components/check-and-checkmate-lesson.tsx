@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { ChessBoard } from "@/components/chess-board";
 import {
   applyBoardMove,
@@ -12,6 +13,7 @@ import {
   getCheckingPieces,
   getLegalMovesForColor,
   getMoveOrigins,
+  isCheckmate,
   isInCheck,
   positionToPlacements,
   type BoardArrow,
@@ -19,12 +21,25 @@ import {
   type ChessColor,
   type LessonPieceSymbol,
 } from "@/lib/chess";
+import { appColors, type FeedbackTone } from "@/lib/colors";
 import type { BoardPosition, Piece, Square } from "@/types/chessboard";
-import { mateInOnePositions, mateQuizPositions } from "@/data/checkmate-positions";
-import { stalemateExamplePositions, stalemateQuizPositions } from "@/data/stalemate-positions";
+import {
+  mateInOnePositions,
+  mateQuizPositions,
+  type MateInOnePosition,
+  type MateQuizPosition,
+} from "@/data/checkmate-positions";
+import { drawExamplePositions, type DrawExamplePosition } from "@/data/draw-example-positions";
+import {
+  stalemateExamplePositions,
+  stalemateQuizPositions,
+  type StalemateExamplePosition,
+  type StalemateQuizPosition,
+} from "@/data/stalemate-positions";
 
 type EscapeMode = "move" | "capture" | "block" | "any";
 type PracticeLevel = 1 | 2 | 3;
+type MateTaskMode = "mate-quiz" | "mate-in-one";
 
 type CheckExercise = {
   board: BoardPosition;
@@ -71,12 +86,12 @@ function getMoveKind(before: BoardPosition, move: BoardMove): Exclude<EscapeMode
   const kingSquare = findKingSquare(before, "white");
   const checkingPieces = new Set(getCheckingPieces(before, "white"));
 
-  if (kingSquare === move.from) {
-    return "move";
-  }
-
   if (checkingPieces.has(move.to)) {
     return "capture";
+  }
+
+  if (kingSquare === move.from) {
+    return "move";
   }
 
   return "block";
@@ -288,57 +303,172 @@ function createExercise(mode: EscapeMode, level: PracticeLevel): CheckExercise {
   }
 }
 
-function getFeedbackForMove(exercise: CheckExercise, move: BoardMove): string | null {
+type MoveCheckResult =
+  | {
+      type: "valid";
+      nextBoard: BoardPosition;
+    }
+  | {
+      type: "wrong-method";
+      message: string;
+      nextBoard: BoardPosition;
+    }
+  | {
+      type: "illegal";
+      message: string;
+    };
+
+type PracticeFeedback = {
+  type: FeedbackTone;
+  message: string;
+} | null;
+
+const escapeModeOptions: Array<{
+  mode: EscapeMode;
+  title: string;
+  description: string;
+}> = [
+  {
+    mode: "move",
+    title: "Уйти от нападения",
+    description: "Ходить должен король. Нужно уйти с атакованной линии так, чтобы шаха больше не было.",
+  },
+  {
+    mode: "capture",
+    title: "Уничтожить атакующую фигуру",
+    description: "Нужно снять шах именно взятием той фигуры, которая напала на короля.",
+  },
+  {
+    mode: "block",
+    title: "Закрыться от нападения",
+    description: "Нужно поставить свою фигуру между королем и атакующей фигурой.",
+  },
+  {
+    mode: "any",
+    title: "Спастись любым путем",
+    description: "Подходит любой законный ход, после которого король больше не находится под шахом.",
+  },
+];
+
+function getEscapeModeOption(mode: EscapeMode) {
+  return escapeModeOptions.find((option) => option.mode === mode) ?? escapeModeOptions[0];
+}
+
+function getFeedbackForMove(exercise: CheckExercise, move: BoardMove): MoveCheckResult {
   const piece = exercise.board[move.from];
 
   if (!piece || !piece.startsWith("w")) {
-    return "Ходить нужно белой фигурой.";
+    return {
+      type: "illegal",
+      message: "\u0425\u043e\u0434\u0438\u0442\u044c \u043d\u0443\u0436\u043d\u043e \u0431\u0435\u043b\u043e\u0439 \u0444\u0438\u0433\u0443\u0440\u043e\u0439.",
+    };
   }
 
   const legalMoves = getLegalMovesForColor(exercise.board, "white");
   const isLegal = legalMoves.some((legalMove) => legalMove.from === move.from && legalMove.to === move.to);
 
   if (!isLegal) {
-    const nextBoard = applyBoardMove(exercise.board, move);
-    return isInCheck(nextBoard, "white") ? "Неверно: шах всё еще остается." : "Неверно.";
+    return {
+      type: "illegal",
+      message: "\u0424\u0438\u0433\u0443\u0440\u0430 \u0442\u0430\u043a \u043d\u0435 \u0445\u043e\u0434\u0438\u0442.",
+    };
   }
 
+  const nextBoard = applyBoardMove(exercise.board, move);
   const kind = getMoveKind(exercise.board, move);
 
   if (exercise.mode === "move" && kind !== "move") {
-    return kind === "capture" ? "Задача именно уйти, а не съесть фигуру." : "Задача именно уйти королём.";
+    return {
+      type: "wrong-method",
+      message: "\u041d\u0435\u0432\u0435\u0440\u043d\u043e. \u0428\u0430\u0445 \u0441\u043d\u044f\u0442, \u043d\u043e \u043d\u0435 \u0443\u0445\u043e\u0434\u043e\u043c \u043e\u0442 \u043d\u0430\u043f\u0430\u0434\u0435\u043d\u0438\u044f.",
+      nextBoard,
+    };
   }
 
   if (exercise.mode === "capture" && kind !== "capture") {
-    return kind === "move" ? "Неверно: нужно именно уничтожить атакующую фигуру." : "Неверно: нужно именно съесть фигуру, которая поставила шах.";
+    return {
+      type: "wrong-method",
+      message: "\u041d\u0435\u0432\u0435\u0440\u043d\u043e. \u0428\u0430\u0445 \u0441\u043d\u044f\u0442, \u043d\u043e \u043d\u0435 \u0443\u043d\u0438\u0447\u0442\u043e\u0436\u0435\u043d\u0438\u0435\u043c \u0430\u0442\u0430\u043a\u0443\u044e\u0449\u0435\u0439 \u0444\u0438\u0433\u0443\u0440\u044b.",
+      nextBoard,
+    };
   }
 
   if (exercise.mode === "block" && kind !== "block") {
-    return kind === "move" ? "Неверно: нужно именно закрыться." : "Неверно: здесь нужно закрыться, а не съесть фигуру.";
+    return {
+      type: "wrong-method",
+      message: "\u041d\u0435\u0432\u0435\u0440\u043d\u043e. \u0428\u0430\u0445 \u0441\u043d\u044f\u0442, \u043d\u043e \u043d\u0435 \u0437\u0430\u043a\u0440\u044b\u0442\u0438\u0435\u043c.",
+      nextBoard,
+    };
   }
 
-  return null;
+  return {
+    type: "valid",
+    nextBoard,
+  };
 }
-
-function CheckEscapePractice({ mode }: { mode: EscapeMode }) {
+function CheckEscapePractice() {
+  const [mode, setMode] = useState<EscapeMode>("move");
   const [level, setLevel] = useState<PracticeLevel>(1);
   const [exercise, setExercise] = useState<CheckExercise>(() => createExercise(mode, 1));
-  const [feedback, setFeedback] = useState("Сделайте ход на доске.");
+  const [displayBoard, setDisplayBoard] = useState<BoardPosition>(() => exercise.board);
+  const [feedback, setFeedback] = useState<PracticeFeedback>(null);
   const [answerVisible, setAnswerVisible] = useState(false);
+  const transitionTimer = useRef<number | null>(null);
 
-  function loadNext(nextLevel = level) {
-    setExercise(createExercise(mode, nextLevel));
-    setFeedback("Сделайте ход на доске.");
+  function clearTransitionTimer() {
+    if (transitionTimer.current === null) {
+      return;
+    }
+
+    window.clearTimeout(transitionTimer.current);
+    transitionTimer.current = null;
+  }
+
+  useEffect(() => clearTransitionTimer, []);
+
+  function loadNext(nextLevel = level, nextMode = mode) {
+    clearTransitionTimer();
+    const nextExercise = createExercise(nextMode, nextLevel);
+    setExercise(nextExercise);
+    setDisplayBoard(nextExercise.board);
+    setFeedback(null);
     setAnswerVisible(false);
   }
 
+  const selectedMode = getEscapeModeOption(mode);
   const arrows: BoardArrow[] = answerVisible
-    ? [{ from: exercise.answer.from, to: exercise.answer.to, color: "rgba(5, 150, 105, 0.9)" }]
+    ? [{ from: exercise.answer.from, to: exercise.answer.to, color: appColors.arrow.success }]
     : [];
 
   return (
     <div className="rounded-[1.5rem] border border-stone-200 bg-white p-4 sm:p-5">
-      <div className="flex flex-wrap gap-2">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Задание</p>
+        <h3 className="mt-2 text-2xl font-semibold tracking-tight text-stone-950">{selectedMode.title}</h3>
+        <p className="mt-3 text-sm leading-7 text-stone-600">{selectedMode.description}</p>
+      </div>
+
+      <div className="mt-5 grid gap-2 sm:grid-cols-2">
+        {escapeModeOptions.map((item) => (
+          <button
+            key={item.mode}
+            type="button"
+            className={`rounded-2xl px-4 py-3 text-left text-sm font-medium transition ${
+              mode === item.mode
+                ? "bg-stone-900 text-white"
+                : "border border-stone-300 text-stone-700 hover:border-stone-400 hover:bg-stone-50"
+            }`}
+            onClick={() => {
+              setMode(item.mode);
+              loadNext(level, item.mode);
+            }}
+          >
+            {item.title}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
         {[1, 2, 3].map((item) => (
           <button
             key={item}
@@ -354,7 +484,7 @@ function CheckEscapePractice({ mode }: { mode: EscapeMode }) {
               loadNext(nextLevel);
             }}
           >
-            Уровень {item}
+            {"\u0423\u0440\u043e\u0432\u0435\u043d\u044c"} {item}
           </button>
         ))}
       </div>
@@ -362,60 +492,83 @@ function CheckEscapePractice({ mode }: { mode: EscapeMode }) {
       <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
         <ChessBoard
           boardId={`check-escape-${mode}-${level}`}
-          pieces={positionToPlacements(exercise.board)}
+          pieces={positionToPlacements(displayBoard)}
           arrows={arrows}
+          overlay={feedback}
           draggable
           onPieceDrop={(from, to) => {
-            const error = getFeedbackForMove(exercise, { from, to });
+            const result = getFeedbackForMove(exercise, { from, to });
 
-            if (error) {
-              setFeedback(error);
+            if (result.type === "illegal") {
+              clearTransitionTimer();
+              setFeedback({ type: "info", message: result.message });
               return false;
             }
 
-            setFeedback("Верно. Шах снят.");
-            window.setTimeout(() => loadNext(), 700);
+            clearTransitionTimer();
+            setDisplayBoard(result.nextBoard);
+
+            if (result.type === "wrong-method") {
+              setFeedback({ type: "error", message: result.message });
+              transitionTimer.current = window.setTimeout(() => {
+                setDisplayBoard(exercise.board);
+                transitionTimer.current = null;
+              }, 2000);
+              return true;
+            }
+
+            setFeedback({ type: "success", message: "\u0412\u0435\u0440\u043d\u043e. \u0428\u0430\u0445 \u0441\u043d\u044f\u0442." });
+            transitionTimer.current = window.setTimeout(() => {
+              loadNext();
+              transitionTimer.current = null;
+            }, 2000);
             return true;
           }}
         />
         <div className="flex flex-col gap-3">
-          <p className="rounded-2xl bg-stone-50 px-4 py-3 text-sm leading-6 text-stone-700">
-            {feedback}
-          </p>
           <button
             type="button"
             onClick={() => loadNext()}
             className="inline-flex justify-center rounded-full border border-stone-300 px-5 py-2.5 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
           >
-            Пропустить
+            {"\u041f\u0440\u043e\u043f\u0443\u0441\u0442\u0438\u0442\u044c"}
           </button>
           <button
             type="button"
             onClick={() => setAnswerVisible(true)}
             className="inline-flex justify-center rounded-full bg-stone-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-stone-700"
           >
-            Показать ответ
+            {"\u041f\u043e\u043a\u0430\u0437\u0430\u0442\u044c \u043e\u0442\u0432\u0435\u0442"}
           </button>
         </div>
       </div>
     </div>
   );
 }
-
 function DatasetPlaceholder({
   title,
   description,
   count,
+  adminHref,
 }: {
   title: string;
   description: string;
   count: number;
+  adminHref?: string;
 }) {
   return (
     <div className="rounded-[1.5rem] border border-dashed border-stone-300 bg-white p-4 text-sm leading-7 text-stone-600 sm:p-5">
       <p className="font-semibold text-stone-950">{title}</p>
       <p className="mt-2">{description}</p>
       <p className="mt-2 text-stone-500">Сейчас в наборе позиций: {count}.</p>
+      {adminHref ? (
+        <Link
+          href={adminHref}
+          className="mt-3 inline-flex rounded-full bg-stone-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-700"
+        >
+          Открыть админку
+        </Link>
+      ) : null}
     </div>
   );
 }
@@ -433,82 +586,572 @@ function StaticRuleBoard() {
     <ChessBoard
       boardId="check-example-board"
       pieces={positionToPlacements(board)}
-      arrows={[{ from: "e8", to: "e1", color: "rgba(220, 38, 38, 0.85)" }]}
+      arrows={[{ from: "e8", to: "e1", color: appColors.arrow.danger }]}
     />
   );
 }
 
-export function CheckAndCheckmateLesson() {
+function getSideToMoveLabel(sideToMove: "white" | "black") {
+  return sideToMove === "white" ? "белые" : "черные";
+}
+
+function getSideToMoveInstrumentalLabel(sideToMove: "white" | "black") {
+  return sideToMove === "white" ? "белыми" : "черными";
+}
+
+function getOpponentColor(color: ChessColor): ChessColor {
+  return color === "white" ? "black" : "white";
+}
+
+function MateQuizCarousel({ adminHref, positions }: { adminHref?: string; positions: MateQuizPosition[] }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [selectedAnswer, setSelectedAnswer] = useState<boolean | null>(null);
+  const activePosition = positions[activeIndex];
+  const isAnswered = selectedAnswer !== null;
+  const isCorrect = isAnswered ? selectedAnswer === activePosition?.isMate : false;
+
+  function goToPosition(nextIndex: number) {
+    setActiveIndex(nextIndex);
+    setSelectedAnswer(null);
+  }
+
+  if (!activePosition) {
+    return (
+      <DatasetPlaceholder
+        title="Определите, мат ли это"
+        description="Здесь будет набор из 30 позиций в src/data/mate-quiz-positions.ts."
+        count={positions.length}
+        adminHref={adminHref}
+      />
+    );
+  }
+
+  return (
+    <div className="rounded-[1.5rem] border border-stone-200 bg-white p-4 sm:p-5">
+      <div className="grid gap-5 md:grid-cols-[minmax(0,320px)_minmax(0,1fr)] md:items-start">
+        <div>
+          <p className="mb-3 text-left text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+            Позиция {activeIndex + 1} из {positions.length}
+          </p>
+          <ChessBoard
+            boardId={`mate-quiz-${activePosition.id}`}
+            pieces={positionToPlacements(activePosition.position)}
+          />
+        </div>
+        <div>
+          <h3 className="text-xl font-semibold tracking-tight text-stone-950">Определите, мат ли это</h3>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              type="button"
+              className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                selectedAnswer === true
+                  ? "bg-stone-900 text-white"
+                  : "border border-stone-300 text-stone-700 hover:border-stone-400 hover:bg-stone-50"
+              }`}
+              onClick={() => setSelectedAnswer(true)}
+            >
+              Это мат
+            </button>
+            <button
+              type="button"
+              className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                selectedAnswer === false
+                  ? "bg-stone-900 text-white"
+                  : "border border-stone-300 text-stone-700 hover:border-stone-400 hover:bg-stone-50"
+              }`}
+              onClick={() => setSelectedAnswer(false)}
+            >
+              Это не мат
+            </button>
+          </div>
+          {isAnswered ? (
+            <div
+              className={`mt-4 rounded-2xl px-4 py-3 text-sm leading-6 ${
+                isCorrect ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-800"
+              }`}
+            >
+              <p className="font-semibold">
+                {isCorrect ? "Правильно." : "Неверно."} Ответ: {activePosition.isMate ? "это мат" : "это не мат"}.
+              </p>
+              {activePosition.explanation ? <p className="mt-2">{activePosition.explanation}</p> : null}
+            </div>
+          ) : null}
+          <div className="mt-5 flex flex-wrap gap-3">
+            <button
+              type="button"
+              className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+              onClick={() => goToPosition(activeIndex === 0 ? positions.length - 1 : activeIndex - 1)}
+            >
+              Назад
+            </button>
+            <button
+              type="button"
+              className="rounded-full bg-stone-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-700"
+              onClick={() => goToPosition((activeIndex + 1) % positions.length)}
+            >
+              Следующая позиция
+            </button>
+            {adminHref ? (
+              <Link
+                href={adminHref}
+                className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+              >
+                Открыть админку
+              </Link>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MateInOnePractice({ adminHref, positions }: { adminHref?: string; positions: MateInOnePosition[] }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const activePosition = positions[activeIndex];
+  const [displayBoard, setDisplayBoard] = useState<BoardPosition>(() => activePosition?.position ?? {});
+  const [result, setResult] = useState<PracticeFeedback>(null);
+  const [answerVisible, setAnswerVisible] = useState(false);
+  const isSolved = result?.type === "success";
+  const isFailed = result?.type === "error";
+
+  function resetTask(position = activePosition) {
+    setDisplayBoard(position?.position ?? {});
+    setResult(null);
+    setAnswerVisible(false);
+  }
+
+  function goToTask(nextIndex: number) {
+    const nextPosition = positions[nextIndex];
+
+    setActiveIndex(nextIndex);
+    resetTask(nextPosition);
+  }
+
+  if (!activePosition) {
+    return (
+      <DatasetPlaceholder
+        title="Поставьте мат в 1 ход"
+        description="Здесь будет набор из 30 позиций с примером правильного хода в src/data/mate-in-one-positions.ts. При проверке важно только то, стал ли ход матом."
+        count={positions.length}
+        adminHref={adminHref}
+      />
+    );
+  }
+
+  const answerArrows: BoardArrow[] = answerVisible
+    ? [
+        {
+          from: activePosition.exampleAnswer.from as Square,
+          to: activePosition.exampleAnswer.to as Square,
+          color: appColors.arrow.success,
+        },
+      ]
+    : [];
+
+  return (
+    <div className="rounded-[1.5rem] border border-stone-200 bg-white p-4 sm:p-5">
+      <div className="grid gap-5 md:grid-cols-[minmax(0,320px)_minmax(0,1fr)] md:items-start">
+        <div>
+          <p className="mb-3 text-left text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+            Задача {activeIndex + 1} из {positions.length}
+          </p>
+          <ChessBoard
+            boardId={`mate-in-one-${activePosition.id}`}
+            pieces={positionToPlacements(displayBoard)}
+            arrows={answerArrows}
+            overlay={result}
+          draggable={!isSolved && !isFailed}
+          onPieceDrop={(from, to) => {
+            const movedPiece = activePosition.position[from];
+
+            if (!movedPiece || !movedPiece.startsWith(activePosition.sideToMove === "white" ? "w" : "b")) {
+              setResult({
+                type: "info",
+                message: `Мат должны поставить ${getSideToMoveInstrumentalLabel(activePosition.sideToMove)}.`,
+              });
+              return false;
+            }
+
+            const legalMoves = getLegalMovesForColor(activePosition.position, activePosition.sideToMove);
+            const isLegal = legalMoves.some((move) => move.from === from && move.to === to);
+
+              if (!isLegal) {
+                setResult({ type: "info", message: "Фигура так не ходит." });
+                return false;
+              }
+
+              const nextBoard = applyBoardMove(activePosition.position, { from, to });
+              setDisplayBoard(nextBoard);
+
+              if (isCheckmate(nextBoard, getOpponentColor(activePosition.sideToMove))) {
+                setResult({ type: "success", message: "Верно. Это мат." });
+              } else {
+                setResult({ type: "error", message: "Не мат." });
+              }
+
+              return true;
+            }}
+          />
+        </div>
+        <div>
+          <h3 className="text-xl font-semibold tracking-tight text-stone-950">Поставьте мат в 1 ход</h3>
+          <p className="mt-3 text-sm leading-7 text-stone-600">
+            Ход: {getSideToMoveLabel(activePosition.sideToMove)}. Сделайте один ход на доске.
+          </p>
+          {result ? (
+            <div
+              className={`mt-4 rounded-2xl px-4 py-3 text-sm leading-6 ${
+                result.type === "success"
+                  ? "bg-emerald-50 text-emerald-800"
+                  : result.type === "error"
+                    ? "bg-rose-50 text-rose-800"
+                    : "bg-stone-100 text-stone-700"
+              }`}
+            >
+              <p className="font-semibold">{result.message}</p>
+              {activePosition.explanation ? <p className="mt-2">{activePosition.explanation}</p> : null}
+            </div>
+          ) : null}
+          <div className="mt-5 flex flex-wrap gap-3">
+            {isFailed ? (
+              <button
+                type="button"
+                className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                onClick={() => resetTask()}
+              >
+                Попробовать еще раз
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+              onClick={() => goToTask((activeIndex + 1) % positions.length)}
+            >
+              {isSolved ? "Следующая задача" : "Пропустить"}
+            </button>
+            <button
+              type="button"
+              className="rounded-full bg-stone-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-700"
+              onClick={() => setAnswerVisible(true)}
+            >
+              Показать ответ
+            </button>
+            {adminHref ? (
+              <Link
+                href={adminHref}
+                className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+              >
+                Открыть админку
+              </Link>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MateTasksPractice({ showAdminLinks }: { showAdminLinks: boolean }) {
+  const [mode, setMode] = useState<MateTaskMode>("mate-quiz");
+  const options: Array<{ mode: MateTaskMode; title: string }> = [
+    { mode: "mate-quiz", title: "Определите, мат ли это" },
+    { mode: "mate-in-one", title: "Поставьте мат в 1 ход" },
+  ];
+
+  return (
+    <div className="space-y-5">
+      <div className="grid gap-2 sm:grid-cols-2">
+        {options.map((option) => (
+          <button
+            key={option.mode}
+            type="button"
+            className={`rounded-2xl px-4 py-3 text-left text-sm font-medium transition ${
+              mode === option.mode
+                ? "bg-stone-900 text-white"
+                : "border border-stone-300 bg-white text-stone-700 hover:border-stone-400 hover:bg-stone-50"
+            }`}
+            onClick={() => setMode(option.mode)}
+          >
+            {option.title}
+          </button>
+        ))}
+      </div>
+
+      {mode === "mate-quiz" ? (
+        <MateQuizCarousel
+          positions={mateQuizPositions}
+          adminHref={showAdminLinks ? "/admin?dataset=mateQuiz" : undefined}
+        />
+      ) : (
+        <MateInOnePractice
+          positions={mateInOnePositions}
+          adminHref={showAdminLinks ? "/admin?dataset=mateInOne" : undefined}
+        />
+      )}
+    </div>
+  );
+}
+
+function StalemateQuizCarousel({
+  adminHref,
+  positions,
+}: {
+  adminHref?: string;
+  positions: StalemateQuizPosition[];
+}) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [selectedAnswer, setSelectedAnswer] = useState<boolean | null>(null);
+  const activePosition = positions[activeIndex];
+  const isAnswered = selectedAnswer !== null;
+  const isCorrect = isAnswered ? selectedAnswer === activePosition?.isStalemate : false;
+
+  function goToPosition(nextIndex: number) {
+    setActiveIndex(nextIndex);
+    setSelectedAnswer(null);
+  }
+
+  if (!activePosition) {
+    return (
+      <DatasetPlaceholder
+        title="Определите, пат или не пат"
+        description="Здесь будет набор тестовых позиций в src/data/stalemate-quiz-positions.ts."
+        count={positions.length}
+        adminHref={adminHref}
+      />
+    );
+  }
+
+  return (
+    <div className="rounded-[1.5rem] border border-stone-200 bg-white p-4 sm:p-5">
+      <div className="grid gap-5 md:grid-cols-[minmax(0,320px)_minmax(0,1fr)] md:items-center">
+        <div>
+          <p className="mb-3 text-left text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+            Позиция {activeIndex + 1} из {positions.length}
+          </p>
+          <ChessBoard
+            boardId={`stalemate-quiz-${activePosition.id}`}
+            pieces={positionToPlacements(activePosition.position)}
+          />
+        </div>
+        <div>
+          <h3 className="text-xl font-semibold tracking-tight text-stone-950">Определите, пат или не пат</h3>
+          <p className="mt-3 text-sm leading-7 text-stone-600">
+            Ход: {getSideToMoveLabel(activePosition.sideToMove)}
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              type="button"
+              className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                selectedAnswer === true
+                  ? "bg-stone-900 text-white"
+                  : "border border-stone-300 text-stone-700 hover:border-stone-400 hover:bg-stone-50"
+              }`}
+              onClick={() => setSelectedAnswer(true)}
+            >
+              Это пат
+            </button>
+            <button
+              type="button"
+              className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                selectedAnswer === false
+                  ? "bg-stone-900 text-white"
+                  : "border border-stone-300 text-stone-700 hover:border-stone-400 hover:bg-stone-50"
+              }`}
+              onClick={() => setSelectedAnswer(false)}
+            >
+              Это не пат
+            </button>
+          </div>
+          {isAnswered ? (
+            <div
+              className={`mt-4 rounded-2xl px-4 py-3 text-sm leading-6 ${
+                isCorrect ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-800"
+              }`}
+            >
+              <p className="font-semibold">
+                {isCorrect ? "Правильно." : "Неверно."} Ответ:{" "}
+                {activePosition.isStalemate ? "это пат" : "это не пат"}.
+              </p>
+              {activePosition.explanation ? <p className="mt-2">{activePosition.explanation}</p> : null}
+            </div>
+          ) : null}
+          <div className="mt-5 flex flex-wrap gap-3">
+            <button
+              type="button"
+              className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+              onClick={() => goToPosition(activeIndex === 0 ? positions.length - 1 : activeIndex - 1)}
+            >
+              Назад
+            </button>
+            <button
+              type="button"
+              className="rounded-full bg-stone-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-700"
+              onClick={() => goToPosition((activeIndex + 1) % positions.length)}
+            >
+              Следующая позиция
+            </button>
+            {adminHref ? (
+              <Link
+                href={adminHref}
+                className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+              >
+                Открыть админку
+              </Link>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StalemateExampleCarousel({
+  adminHref,
+  positions,
+}: {
+  adminHref?: string;
+  positions: StalemateExamplePosition[];
+}) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const activePosition = positions[activeIndex];
+
+  if (!activePosition) {
+    return (
+      <DatasetPlaceholder
+        title="Примеры с патом"
+        description="Здесь будет карусель или кнопка 'посмотреть еще' для 30 примеров из src/data/stalemate-example-positions.ts."
+        count={positions.length}
+        adminHref={adminHref}
+      />
+    );
+  }
+
+  return (
+    <div className="rounded-[1.5rem] border border-stone-200 bg-white p-4 sm:p-5">
+      <div className="grid gap-5 md:grid-cols-[minmax(0,320px)_minmax(0,1fr)] md:items-center">
+        <div>
+          <p className="mb-3 text-left text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+            Пример {activeIndex + 1} из {positions.length}
+          </p>
+          <ChessBoard
+            boardId={`stalemate-example-${activePosition.id}`}
+            pieces={positionToPlacements(activePosition.position)}
+          />
+        </div>
+        <div>
+          <h3 className="text-xl font-semibold tracking-tight text-stone-950">Примеры с патом</h3>
+          <p className="mt-3 text-sm leading-7 text-stone-600">
+            Ход: {getSideToMoveLabel(activePosition.sideToMove)}.
+          </p>
+          <p className="mt-3 text-base leading-7 text-stone-700">
+            {activePosition.explanation || "Пояснение не заполнено."}
+          </p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <button
+              type="button"
+              className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+              onClick={() => setActiveIndex((current) => (current === 0 ? positions.length - 1 : current - 1))}
+            >
+              Назад
+            </button>
+            <button
+              type="button"
+              className="rounded-full bg-stone-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-700"
+              onClick={() => setActiveIndex((current) => (current + 1) % positions.length)}
+            >
+              Следующий пример
+            </button>
+            {adminHref ? (
+              <Link
+                href={adminHref}
+                className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+              >
+                Открыть админку
+              </Link>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PositionCarousel({ adminHref, positions }: { adminHref?: string; positions: DrawExamplePosition[] }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const activePosition = positions[activeIndex];
+  const caption = activePosition ? activePosition.caption || "Комментарий не заполнен." : "";
+
+  if (!activePosition) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-[1.5rem] border border-stone-200 bg-stone-50 p-4 sm:p-5">
+      <div className="grid gap-5 md:grid-cols-[minmax(0,320px)_minmax(0,1fr)] md:items-center">
+        <ChessBoard
+          boardId={`draw-example-${activePosition.id}`}
+          pieces={positionToPlacements(activePosition.position)}
+        />
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+            Пример {activeIndex + 1} из {positions.length}
+          </p>
+          <p className="mt-3 text-base leading-7 text-stone-700">{caption}</p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <button
+              type="button"
+              className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-white"
+              onClick={() => setActiveIndex((current) => (current === 0 ? positions.length - 1 : current - 1))}
+            >
+              Назад
+            </button>
+            <button
+              type="button"
+              className="rounded-full bg-stone-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-700"
+              onClick={() => setActiveIndex((current) => (current + 1) % positions.length)}
+            >
+              Следующий пример
+            </button>
+            {adminHref ? (
+              <Link
+                href={adminHref}
+                className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-white"
+              >
+                Открыть админку
+              </Link>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function CheckAndCheckmateLesson({ showAdminLinks = false }: { showAdminLinks?: boolean }) {
   return (
     <div className="mt-8 space-y-8 sm:mt-10">
       <section className="rounded-[1.75rem] border border-stone-200 bg-stone-50 p-4 sm:p-6">
         <h2 className="text-2xl font-semibold tracking-tight text-stone-950">Мат</h2>
-        <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
-          <div className="space-y-4 text-base leading-7 text-stone-700">
-            <p>
-              Цель игры - поставить мат сопернику. Часто можно услышать, что цель игры - съесть
-              короля, но это не так: в шахматах нельзя съесть короля, можно только напасть на него.
-            </p>
-            <p>
-              Нападение на короля называется шахом. Если король под шахом, можно уйти от нападения,
-              защититься другой фигурой или уничтожить атакующую фигуру.
-            </p>
-          </div>
-          <div className="w-full max-w-[320px] justify-self-center lg:justify-self-end">
+        <div className="mt-5 space-y-5 text-base leading-7 text-stone-700">
+          <p>
+            Цель игры - поставить мат сопернику. Часто можно услышать, что цель игры - съесть
+            короля, но это не так: в шахматах нельзя съесть короля, можно только напасть на него.
+          </p>
+          <p>Нападение на короля называется шахом.</p>
+          <div className="w-full max-w-[320px]">
             <StaticRuleBoard />
           </div>
+          <p>
+            Если король под шахом, можно уйти от нападения, защититься другой фигурой или уничтожить
+            атакующую фигуру.
+          </p>
+          <p>Давайте потренируем это:</p>
         </div>
       </section>
 
       <section className="space-y-5 rounded-[1.75rem] bg-stone-50 p-4 sm:p-6">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
-            Задание
-          </p>
-          <h3 className="mt-2 text-2xl font-semibold tracking-tight text-stone-950">
-            Уйти от нападения
-          </h3>
-        </div>
-        <CheckEscapePractice mode="move" />
-      </section>
-
-      <section className="space-y-5 rounded-[1.75rem] bg-stone-50 p-4 sm:p-6">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
-            Задание
-          </p>
-          <h3 className="mt-2 text-2xl font-semibold tracking-tight text-stone-950">
-            Уничтожить атакующую фигуру
-          </h3>
-        </div>
-        <CheckEscapePractice mode="capture" />
-      </section>
-
-      <section className="space-y-5 rounded-[1.75rem] bg-stone-50 p-4 sm:p-6">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
-            Задание
-          </p>
-          <h3 className="mt-2 text-2xl font-semibold tracking-tight text-stone-950">
-            Закрыться от нападения
-          </h3>
-        </div>
-        <CheckEscapePractice mode="block" />
-      </section>
-
-      <section className="space-y-5 rounded-[1.75rem] bg-stone-50 p-4 sm:p-6">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
-            Общее задание
-          </p>
-          <h3 className="mt-2 text-2xl font-semibold tracking-tight text-stone-950">
-            Спастись от шаха
-          </h3>
-          <p className="mt-3 text-base leading-7 text-stone-600">
-            Здесь подходит любой способ, если после вашего хода шаха больше нет.
-          </p>
-        </div>
-        <CheckEscapePractice mode="any" />
+        <CheckEscapePractice />
       </section>
 
       <section className="space-y-5 rounded-[1.75rem] bg-stone-50 p-4 sm:p-6">
@@ -516,17 +1159,9 @@ export function CheckAndCheckmateLesson() {
         <p className="text-base leading-7 text-stone-700">
           Если ничего из этого невозможно сделать, значит на доске мат. Матом считается позиция,
           где король под нападением и не может спастись ни одним законным ходом.
+          А теперь немного практики на распознавание мата и постановку мата в 1 ход:
         </p>
-        <DatasetPlaceholder
-          title="Определите, мат ли это"
-          description="Здесь будет набор из 30 позиций в src/data/checkmate-positions.ts."
-          count={mateQuizPositions.length}
-        />
-        <DatasetPlaceholder
-          title="Поставьте мат в 1 ход"
-          description="Здесь будет набор из 30 позиций с ответами в src/data/checkmate-positions.ts."
-          count={mateInOnePositions.length}
-        />
+        <MateTasksPractice showAdminLinks={showAdminLinks} />
       </section>
 
       <section className="space-y-5 rounded-[1.75rem] bg-stone-50 p-4 sm:p-6">
@@ -535,15 +1170,17 @@ export function CheckAndCheckmateLesson() {
           Пат - это позиция, где игрок не находится под шахом, но не имеет ни одного законного
           хода. В отличие от мата, это не победа, а ничья.
         </p>
-        <DatasetPlaceholder
-          title="Примеры с патом"
-          description="Здесь будет карусель или кнопка 'посмотреть еще' для 30 примеров."
-          count={stalemateExamplePositions.length}
+        <StalemateExampleCarousel
+          positions={stalemateExamplePositions}
+          adminHref={showAdminLinks ? "/admin?dataset=stalemateExamples" : undefined}
         />
-        <DatasetPlaceholder
-          title="Определите, пат или не пат"
-          description="Здесь будет набор тестовых позиций в src/data/stalemate-positions.ts."
-          count={stalemateQuizPositions.length}
+        <p className="text-base leading-7 text-stone-700">
+          А теперь давайте проверим знания на практике. Ниже несколько задач, где нужно определить,
+          пат ли это.
+        </p>
+        <StalemateQuizCarousel
+          positions={stalemateQuizPositions}
+          adminHref={showAdminLinks ? "/admin?dataset=stalemateQuiz" : undefined}
         />
       </section>
 
@@ -553,6 +1190,19 @@ export function CheckAndCheckmateLesson() {
           Другой вариант ничьей - когда ни одна сторона теоретически не может выиграть: например,
           остались только два короля или два короля и один слон.
         </p>
+        {drawExamplePositions.length > 0 ? (
+          <PositionCarousel
+            positions={drawExamplePositions}
+            adminHref={showAdminLinks ? "/admin?dataset=drawExamples" : undefined}
+          />
+        ) : (
+          <DatasetPlaceholder
+            title="Примеры ничьей"
+            description="Здесь будет карусель примеров ничьей с подписями из src/data/draw-example-positions.ts."
+            count={drawExamplePositions.length}
+            adminHref={showAdminLinks ? "/admin?dataset=drawExamples" : undefined}
+          />
+        )}
         <p className="text-base leading-7 text-stone-700">
           Также ничья может возникать из-за вечного шаха, трехкратного повторения позиции или
           ситуации, где один игрок не умеет реализовать выигрыш за отведенное число ходов.

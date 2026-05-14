@@ -1,12 +1,19 @@
 ﻿"use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { lessons } from "@/data/lesson-catalog";
+import { appColors } from "@/lib/colors";
 
 export function Header() {
+  const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileLessonsOpen, setIsMobileLessonsOpen] = useState(false);
+
+  if (pathname.startsWith("/admin")) {
+    return null;
+  }
 
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);
@@ -54,7 +61,7 @@ export function Header() {
               </Link>
 
               <div className="pointer-events-none absolute right-0 top-full pt-3 opacity-0 transition duration-200 group-hover:pointer-events-auto group-hover:opacity-100">
-                <div className="w-80 rounded-3xl border border-stone-200 bg-white p-3 shadow-[0_24px_60px_rgba(28,25,23,0.12)]">
+                <div className={`w-80 rounded-3xl border border-stone-200 bg-white p-3 ${appColors.elevation.floatingPanel}`}>
                   <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-[0.2em] text-stone-400">
                     Уроки
                   </p>

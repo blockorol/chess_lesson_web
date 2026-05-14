@@ -33,6 +33,8 @@ Prioritize fast development, readable code, reusable components, simple data str
 - `/lessons` - lessons index, renders all lessons from `src/data/lesson-catalog.ts`
 - `/lessons/[slug]` - single lesson page, statically generated from lesson slugs
 - `/about` - static project/about page
+- `/admin` - password-protected local position admin; hidden header, uses `ADMIN_PASS`
+- `/api/admin/positions` - admin-only API for reading/writing curated position files
 - `/404`, `not-found.tsx`, `[...not-found]` - not-found/redirect handling
 
 ## Project Map
@@ -45,6 +47,8 @@ Prioritize fast development, readable code, reusable components, simple data str
 - `src/app/lessons/page.tsx` - lessons index page
 - `src/app/lessons/[slug]/page.tsx` - lesson detail page; uses `generateStaticParams`, `generateMetadata`, `LessonIntro`, and `LessonSubtopics`
 - `src/app/about/page.tsx` - about page
+- `src/app/admin/page.tsx` - position admin entry point; denies access when `ADMIN_PASS` is missing
+- `src/app/api/admin/positions/route.ts` - admin API; validates `x-admin-pass` and writes local TS data files
 - `src/app/not-found.tsx` - Next.js not-found UI
 - `src/app/404/page.tsx` - explicit 404 route
 - `src/app/[...not-found]/page.tsx` - catch-all redirect handling
@@ -81,9 +85,16 @@ Important: lesson content lives in `src/data/lessons/*.ts`; `src/data/lesson-cat
   - handles forbidden squares and capture targets
   - finds shortest paths for multi-move practice
   - creates random squares/targets
+- `src/lib/colors.ts` - functional design color tokens for board squares, arrows, highlights, forbidden squares, and feedback overlays. Prefer this over hard-coded hex/rgba values.
 - `src/lib/utils.ts` - `cn()` helper for Tailwind class merging
 - `src/data/checkmate-positions.ts` - curated datasets for "is this mate?" and "mate in 1" tasks
 - `src/data/stalemate-positions.ts` - curated datasets for stalemate examples and quizzes
+- `src/data/mate-quiz-positions.ts` - admin-managed "is this mate?" positions
+- `src/data/mate-in-one-positions.ts` - admin-managed "mate in 1" positions
+- `src/data/stalemate-example-positions.ts` - admin-managed stalemate examples
+- `src/data/stalemate-quiz-positions.ts` - admin-managed "is this stalemate?" positions
+- `src/data/draw-example-positions.ts` - admin-managed draw examples with captions
+- `src/lib/admin-position-datasets.ts` - metadata for the admin-managed position files
 
 ### Public Assets
 
@@ -104,6 +115,7 @@ Important: lesson content lives in `src/data/lessons/*.ts`; `src/data/lesson-cat
 
 - Change board visuals or drag/drop surface:
   - Start in `src/components/chess-board.tsx`.
+  - Use functional colors from `src/lib/colors.ts`; do not add new hard-coded hex/rgba values in components unless a one-off asset requires it.
 
 - Change legal movement, target generation, obstacles, or pathfinding:
   - Start in `src/lib/chess.ts`.
@@ -114,6 +126,12 @@ Important: lesson content lives in `src/data/lessons/*.ts`; `src/data/lesson-cat
   - Look for helpers such as `getAttackOrigins`, `getMoveOrigins`, `isInCheck`, `isCheckmate`, `isStalemate`, and `getCheckEscapeMoves`.
   - Generated lesson tasks live in `src/components/check-and-checkmate-lesson.tsx`.
   - Curated mate/stalemate datasets live in `src/data/checkmate-positions.ts` and `src/data/stalemate-positions.ts`.
+  - Admin-managed source files are split into the files listed above; the two legacy mate/stalemate files re-export their related datasets.
+
+- Change the position admin:
+  - Start in `src/components/admin-positions-panel.tsx` for UI.
+  - Start in `src/app/api/admin/positions/route.ts` for file persistence and password checks.
+  - `ADMIN_PASS` must be set. Local example: `.env.local` can use `ADMIN_PASS=admin_pass`; `.env.example` documents this.
 
 - Change the five practice levels:
   - Start in `src/components/piece-level-practice.tsx`.

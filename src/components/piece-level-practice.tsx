@@ -14,6 +14,7 @@ import {
   type PracticeMode,
   type SquareStyleMap,
 } from "@/lib/chess";
+import { appColors, type FeedbackTone } from "@/lib/colors";
 import type { Square } from "@/types/chessboard";
 
 type PracticeLevel = 1 | 2 | 3 | 4 | 5;
@@ -39,7 +40,7 @@ type ExerciseState = {
 };
 
 type PracticeOverlay = {
-  type: "success" | "error" | "info";
+  type: FeedbackTone;
   message: string;
 } | null;
 
@@ -501,10 +502,7 @@ export function PieceLevelPractice({
 
   const customSquareStyles: SquareStyleMap = exercise.forbiddenSquares.reduce(
     (styles, square) => {
-      styles[square] = {
-        backgroundColor: "rgba(239, 68, 68, 0.32)",
-        boxShadow: "inset 0 0 0 3px rgba(185, 28, 28, 0.55)",
-      };
+      styles[square] = appColors.board.forbiddenSquare;
 
       return styles;
     },

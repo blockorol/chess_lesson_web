@@ -10,6 +10,7 @@ import {
   type BoardArrow,
   type PiecePlacement,
 } from "@/lib/chess";
+import { appColors, type FeedbackTone } from "@/lib/colors";
 import type { Square } from "@/types/chessboard";
 
 type ChessBoardProps = {
@@ -22,7 +23,7 @@ type ChessBoardProps = {
   highlightedSquares?: Square[];
   customSquareStyles?: SquareStyleMap;
   overlay?: {
-    type: "success" | "error" | "info";
+    type: FeedbackTone;
     message: string;
   } | null;
 };
@@ -63,10 +64,7 @@ export function ChessBoard({
 
   const highlightedSquareStyles = highlightedSquares.reduce<Record<string, CSSProperties>>(
     (styles, square) => {
-    styles[square] = {
-      boxShadow: "inset 0 0 0 4px rgba(5, 150, 105, 0.9)",
-      borderRadius: "0px",
-    };
+    styles[square] = appColors.board.highlight;
 
     return styles;
   },
@@ -93,11 +91,11 @@ export function ChessBoard({
             delayTouchStart: 0,
           }}
           customArrows={arrowsToReactChessboard(arrows)}
-          customArrowColor="rgba(217, 119, 6, 0.85)"
-          customDarkSquareStyle={{ backgroundColor: "#9a7b4f" }}
-          customLightSquareStyle={{ backgroundColor: "#f4e7cf" }}
+          customArrowColor={appColors.arrow.default}
+          customDarkSquareStyle={{ backgroundColor: appColors.board.square.dark }}
+          customLightSquareStyle={{ backgroundColor: appColors.board.square.light }}
           customBoardStyle={{
-            boxShadow: "0 18px 48px rgba(28, 25, 23, 0.16)",
+            boxShadow: appColors.board.shadow,
             touchAction: "none",
             userSelect: "none",
             WebkitUserSelect: "none",
@@ -124,13 +122,7 @@ export function ChessBoard({
       {overlay ? (
         <div className="pointer-events-none absolute inset-x-3 top-3 z-20 flex justify-center">
           <div
-            className={`rounded-full px-4 py-2 text-sm font-semibold shadow-lg backdrop-blur ${
-              overlay.type === "success"
-                ? "bg-emerald-600/92 text-white"
-                : overlay.type === "error"
-                  ? "bg-rose-600/92 text-white"
-                  : "bg-stone-900/88 text-stone-50"
-            }`}
+            className={`max-w-[calc(100%-1rem)] rounded-full px-4 py-2 text-center text-sm font-semibold shadow-lg backdrop-blur ${appColors.overlay[overlay.type]}`}
           >
             {overlay.message}
           </div>

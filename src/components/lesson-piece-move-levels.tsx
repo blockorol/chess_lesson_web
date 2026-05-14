@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { PieceDemoBoard } from "@/components/piece-demo-board";
 import { PieceLevelPractice } from "@/components/piece-level-practice";
+import { appColors } from "@/lib/colors";
 import type { LessonSubtopic } from "@/types/lesson";
 
 type LessonPieceMoveLevelsProps = {
@@ -42,7 +43,7 @@ function HintTooltip({ notes }: { notes: string[] }) {
       >
         ?
       </button>
-      <div className="pointer-events-none absolute left-1/2 top-full z-20 mt-3 w-[min(20rem,calc(100vw-2rem))] -translate-x-1/2 translate-y-2 rounded-[1.5rem] border border-stone-200 bg-white p-4 text-sm leading-7 text-stone-600 opacity-0 shadow-[0_24px_60px_rgba(28,25,23,0.12)] transition duration-200 peer-hover:translate-y-0 peer-hover:opacity-100 peer-focus-visible:translate-y-0 peer-focus-visible:opacity-100 sm:left-auto sm:right-0 sm:w-80 sm:translate-x-0">
+      <div className={`pointer-events-none absolute left-1/2 top-full z-20 mt-3 w-[min(20rem,calc(100vw-2rem))] -translate-x-1/2 translate-y-2 rounded-[1.5rem] border border-stone-200 bg-white p-4 text-sm leading-7 text-stone-600 opacity-0 transition duration-200 peer-hover:translate-y-0 peer-hover:opacity-100 peer-focus-visible:translate-y-0 peer-focus-visible:opacity-100 sm:left-auto sm:right-0 sm:w-80 sm:translate-x-0 ${appColors.elevation.floatingPanel}`}>
         <p className="font-semibold text-stone-950">Подсказка</p>
         <ul className="mt-3 space-y-2">
           {notes.map((note) => (

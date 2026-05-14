@@ -10,6 +10,9 @@ type LessonPageProps = {
   params: Promise<{
     slug: string;
   }>;
+  searchParams?: Promise<{
+    admin?: string;
+  }>;
 };
 
 export async function generateMetadata({
@@ -36,8 +39,9 @@ export function generateStaticParams() {
   }));
 }
 
-export default async function LessonPage({ params }: LessonPageProps) {
+export default async function LessonPage({ params, searchParams }: LessonPageProps) {
   const { slug } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
   const lesson = lessons.find((item) => item.slug === slug);
 
   if (!lesson) {
@@ -61,7 +65,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
         </p>
         <LessonIntro slug={lesson.slug} content={lesson.content} />
         {lesson.slug === "check-and-checkmate" ? (
-          <CheckAndCheckmateLesson />
+          <CheckAndCheckmateLesson showAdminLinks={resolvedSearchParams.admin === "true"} />
         ) : lesson.subtopics ? (
           <LessonSubtopics lessonSlug={lesson.slug} subtopics={lesson.subtopics} />
         ) : (
