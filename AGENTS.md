@@ -68,6 +68,7 @@ Important: lesson content lives in `src/data/lessons/*.ts`; `src/data/lesson-cat
 - `src/components/piece-demo-board.tsx` - non-interactive demo board for generated piece moves or custom positions
 - `src/components/piece-level-practice.tsx` - interactive practice logic for levels 1-5
 - `src/components/chess-board.tsx` - shared `react-chessboard` wrapper; handles piece placement, arrows, highlights, drag/drop, overlays, responsive width
+- `src/components/check-and-checkmate-lesson.tsx` - custom lesson UI and generated tasks for check, checkmate, stalemate, and draw concepts
 - `src/components/not-found-content.tsx` - shared not-found content
 
 ### Chess Logic
@@ -76,10 +77,13 @@ Important: lesson content lives in `src/data/lessons/*.ts`; `src/data/lesson-cat
   - converts placement strings like `Ke1` into board positions
   - converts arrows for `react-chessboard`
   - generates reachable squares by piece
+  - checks attacks, check, legal moves, checkmate, stalemate, and ways to escape check
   - handles forbidden squares and capture targets
   - finds shortest paths for multi-move practice
   - creates random squares/targets
 - `src/lib/utils.ts` - `cn()` helper for Tailwind class merging
+- `src/data/checkmate-positions.ts` - curated datasets for "is this mate?" and "mate in 1" tasks
+- `src/data/stalemate-positions.ts` - curated datasets for stalemate examples and quizzes
 
 ### Public Assets
 
@@ -104,6 +108,12 @@ Important: lesson content lives in `src/data/lessons/*.ts`; `src/data/lesson-cat
 - Change legal movement, target generation, obstacles, or pathfinding:
   - Start in `src/lib/chess.ts`.
   - Then check `src/components/piece-level-practice.tsx`, which consumes those helpers.
+
+- Change check/checkmate/stalemate logic:
+  - Start in `src/lib/chess.ts`.
+  - Look for helpers such as `getAttackOrigins`, `getMoveOrigins`, `isInCheck`, `isCheckmate`, `isStalemate`, and `getCheckEscapeMoves`.
+  - Generated lesson tasks live in `src/components/check-and-checkmate-lesson.tsx`.
+  - Curated mate/stalemate datasets live in `src/data/checkmate-positions.ts` and `src/data/stalemate-positions.ts`.
 
 - Change the five practice levels:
   - Start in `src/components/piece-level-practice.tsx`.

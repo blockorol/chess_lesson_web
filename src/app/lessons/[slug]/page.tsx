@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CheckAndCheckmateLesson } from "@/components/check-and-checkmate-lesson";
 import { LessonIntro } from "@/components/lesson-intro";
 import { LessonSubtopics } from "@/components/lesson-subtopics";
 import { lessons } from "@/data/lesson-catalog";
@@ -59,7 +60,9 @@ export default async function LessonPage({ params }: LessonPageProps) {
           {lesson.short_description}
         </p>
         <LessonIntro slug={lesson.slug} content={lesson.content} />
-        {lesson.subtopics ? (
+        {lesson.slug === "check-and-checkmate" ? (
+          <CheckAndCheckmateLesson />
+        ) : lesson.subtopics ? (
           <LessonSubtopics lessonSlug={lesson.slug} subtopics={lesson.subtopics} />
         ) : (
           <section className="mt-10 rounded-[1.75rem] border border-stone-200 bg-stone-50 p-6">

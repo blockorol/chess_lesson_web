@@ -393,3 +393,340 @@ export function getRandomReachableTarget(
   const reachableSquares = getReachableSquares(piece, square);
   return reachableSquares[Math.floor(Math.random() * reachableSquares.length)];
 }
+
+export type ChessColor = "white" | "black";
+export type BoardMove = {
+  from: Square;
+  to: Square;
+};
+
+const pieceSymbolByPiece: Record<Piece, LessonPieceSymbol> = {
+  wK: "K",
+  wQ: "Q",
+  wR: "R",
+  wB: "B",
+  wN: "N",
+  wP: "P",
+  bK: "K",
+  bQ: "Q",
+  bR: "R",
+  bB: "B",
+  bN: "N",
+  bP: "P",
+};
+
+function getPieceColor(piece: Piece): ChessColor {
+  return piece.startsWith("w") ? "white" : "black";
+}
+
+function getPieceSymbol(piece: Piece): LessonPieceSymbol {
+  return pieceSymbolByPiece[piece];
+}
+
+function getPieceForColor(piece: LessonPieceSymbol, color: ChessColor): Piece {
+  const prefix = color === "white" ? "w" : "b";
+  return `${prefix}${piece}` as Piece;
+}
+
+function getOppositeColor(color: ChessColor): ChessColor {
+  return color === "white" ? "black" : "white";
+}
+
+function getPawnDirection(color: ChessColor): 1 | -1 {
+  return color === "white" ? 1 : -1;
+}
+
+function getSquare(fileIndex: number, rankIndex: number): Square | null {
+  const file = files[fileIndex];
+  const rank = ranks[rankIndex];
+  return file && rank ? (`${file}${rank}` as Square) : null;
+}
+
+function getSquareParts(square: Square): {
+  fileIndex: number;
+  rankIndex: number;
+} {
+  const [file, rank] = square.split("") as [typeof files[number], typeof ranks[number]];
+
+  return {
+    fileIndex: files.indexOf(file),
+    rankIndex: ranks.indexOf(rank),
+  };
+}
+
+function isPathClear(board: BoardPosition, source: Square, target: Square): boolean {
+  return getIntermediateSquares(source, target).every((square) => !board[square]);
+}
+
+export function positionToPlacements(position: BoardPosition): PiecePlacement[] {
+  return Object.entries(position).map(([square, piece]) => {
+    const symbol = piece[0] === "w" ? piece[1] : piece[1].toLowerCase();
+    return `${symbol}${square}`;
+  });
+}
+
+export function setBoardPiece(
+  board: BoardPosition,
+  square: Square,
+  piece: Piece | null,
+): BoardPosition {
+  const nextBoard = { ...board };
+
+  if (piece) {
+    nextBoard[square] = piece;
+  } else {
+    delete nextBoard[square];
+  }
+
+  return nextBoard;
+}
+
+export function applyBoardMove(board: BoardPosition, move: BoardMove): BoardPosition {
+  const piece = board[move.from];
+
+  if (!piece) {
+    return board;
+  }
+
+  const nextBoard = { ...board };
+  delete nextBoard[move.from];
+  nextBoard[move.to] = piece;
+
+  return nextBoard;
+}
+
+export function findKingSquare(board: BoardPosition, color: ChessColor): Square | null {
+  const king = getPieceForColor("K", color);
+  const entry = Object.entries(board).find(([, piece]) => piece === king);
+
+  return entry ? (entry[0] as Square) : null;
+}
+
+export function getAttackOrigins(
+  target: Square,
+  attackerPiece: LessonPieceSymbol,
+  attackerColor: ChessColor,
+): Square[] {
+  if (attackerPiece === "P") {
+    const { fileIndex, rankIndex } = getSquareParts(target);
+    const direction = getPawnDirection(attackerColor);
+
+    return [fileIndex - 1, fileIndex + 1]
+      .map((nextFileIndex) => getSquare(nextFileIndex, rankIndex - direction))
+      .filter((square): square is Square => square !== null);
+  }
+
+  return getReachableSquares(attackerPiece, target);
+}
+
+export function getMoveOrigins(
+  target: Square,
+  movingPiece: LessonPieceSymbol,
+  movingColor: ChessColor,
+  board: BoardPosition = {},
+): Square[] {
+  if (movingPiece === "P") {
+    const { fileIndex, rankIndex } = getSquareParts(target);
+    const direction = getPawnDirection(movingColor);
+    const oneStep = getSquare(fileIndex, rankIndex - direction);
+    const twoStep = getSquare(fileIndex, rankIndex - direction * 2);
+    const startRank = movingColor === "white" ? "2" : "7";
+
+    return [
+      ...(oneStep && !board[oneStep] ? [oneStep] : []),
+      ...(twoStep && twoStep.endsWith(startRank) && !board[twoStep] && !board[oneStep ?? target]
+        ? [twoStep]
+        : []),
+    ];
+  }
+
+  return getReachableSquares(movingPiece, target);
+}
+
+export function doesPieceAttackSquare(
+  board: BoardPosition,
+  source: Square,
+  target: Square,
+): boolean {
+  const piece = board[source];
+
+  if (!piece || source === target) {
+    return false;
+  }
+
+  const pieceSymbol = getPieceSymbol(piece);
+  const color = getPieceColor(piece);
+
+  if (!getAttackOrigins(target, pieceSymbol, color).includes(source)) {
+    return false;
+  }
+
+  if (pieceSymbol === "N" || pieceSymbol === "K" || pieceSymbol === "P") {
+    return true;
+  }
+
+  return isPathClear(board, source, target);
+}
+
+export function isSquareAttacked(
+  board: BoardPosition,
+  square: Square,
+  byColor: ChessColor,
+): boolean {
+  return Object.entries(board).some(([source, piece]) => {
+    if (getPieceColor(piece) !== byColor) {
+      return false;
+    }
+
+    return doesPieceAttackSquare(board, source as Square, square);
+  });
+}
+
+export function getCheckingPieces(
+  board: BoardPosition,
+  kingColor: ChessColor,
+): Square[] {
+  const kingSquare = findKingSquare(board, kingColor);
+
+  if (!kingSquare) {
+    return [];
+  }
+
+  const attackerColor = getOppositeColor(kingColor);
+
+  return Object.entries(board)
+    .filter(([, piece]) => getPieceColor(piece) === attackerColor)
+    .filter(([source]) => doesPieceAttackSquare(board, source as Square, kingSquare))
+    .map(([source]) => source as Square);
+}
+
+export function isInCheck(board: BoardPosition, color: ChessColor): boolean {
+  return getCheckingPieces(board, color).length > 0;
+}
+
+export function getPseudoLegalMovesForPiece(
+  board: BoardPosition,
+  source: Square,
+): Square[] {
+  const piece = board[source];
+
+  if (!piece) {
+    return [];
+  }
+
+  const color = getPieceColor(piece);
+  const opponentColor = getOppositeColor(color);
+  const pieceSymbol = getPieceSymbol(piece);
+
+  if (pieceSymbol === "P") {
+    const { fileIndex, rankIndex } = getSquareParts(source);
+    const direction = getPawnDirection(color);
+    const oneStep = getSquare(fileIndex, rankIndex + direction);
+    const twoStep = getSquare(fileIndex, rankIndex + direction * 2);
+    const startRank = color === "white" ? "2" : "7";
+    const captureTargets = [fileIndex - 1, fileIndex + 1]
+      .map((nextFileIndex) => getSquare(nextFileIndex, rankIndex + direction))
+      .filter((square): square is Square => {
+        if (!square) {
+          return false;
+        }
+
+        const targetPiece = board[square];
+        return Boolean(targetPiece && getPieceColor(targetPiece) === opponentColor);
+      });
+
+    return [
+      ...(oneStep && !board[oneStep] ? [oneStep] : []),
+      ...(source.endsWith(startRank) && oneStep && twoStep && !board[oneStep] && !board[twoStep]
+        ? [twoStep]
+        : []),
+      ...captureTargets,
+    ];
+  }
+
+  return getReachableSquares(pieceSymbol, source).filter((target) => {
+    const targetPiece = board[target];
+
+    if (targetPiece && getPieceColor(targetPiece) === color) {
+      return false;
+    }
+
+    if ((pieceSymbol === "B" || pieceSymbol === "R" || pieceSymbol === "Q") && !isPathClear(board, source, target)) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+export function getLegalMovesForColor(board: BoardPosition, color: ChessColor): BoardMove[] {
+  return Object.entries(board)
+    .filter(([, piece]) => getPieceColor(piece) === color)
+    .flatMap(([source]) =>
+      getPseudoLegalMovesForPiece(board, source as Square)
+        .map((target) => ({
+          from: source as Square,
+          to: target,
+        }))
+        .filter((move) => !isInCheck(applyBoardMove(board, move), color)),
+    );
+}
+
+export function isCheckmate(board: BoardPosition, color: ChessColor): boolean {
+  return isInCheck(board, color) && getLegalMovesForColor(board, color).length === 0;
+}
+
+export function isStalemate(board: BoardPosition, color: ChessColor): boolean {
+  return !isInCheck(board, color) && getLegalMovesForColor(board, color).length === 0;
+}
+
+export function getBlockingSquaresBetween(
+  board: BoardPosition,
+  attackerSquare: Square,
+  kingSquare: Square,
+): Square[] {
+  const attacker = board[attackerSquare];
+
+  if (!attacker) {
+    return [];
+  }
+
+  const attackerSymbol = getPieceSymbol(attacker);
+
+  if (attackerSymbol === "N" || attackerSymbol === "K" || attackerSymbol === "P") {
+    return [];
+  }
+
+  return getIntermediateSquares(attackerSquare, kingSquare);
+}
+
+export function getCheckEscapeMoves(board: BoardPosition, color: ChessColor): {
+  block: BoardMove[];
+  capture: BoardMove[];
+  moveKing: BoardMove[];
+} {
+  const kingSquare = findKingSquare(board, color);
+  const checkingPieces = getCheckingPieces(board, color);
+  const legalMoves = getLegalMovesForColor(board, color);
+
+  if (!kingSquare || checkingPieces.length === 0) {
+    return {
+      block: [],
+      capture: [],
+      moveKing: [],
+    };
+  }
+
+  const checkingPieceSet = new Set(checkingPieces);
+  const blockingSquares = new Set(
+    checkingPieces.flatMap((attackerSquare) =>
+      getBlockingSquaresBetween(board, attackerSquare, kingSquare),
+    ),
+  );
+
+  return {
+    block: legalMoves.filter((move) => move.from !== kingSquare && blockingSquares.has(move.to)),
+    capture: legalMoves.filter((move) => move.from !== kingSquare && checkingPieceSet.has(move.to)),
+    moveKing: legalMoves.filter((move) => move.from === kingSquare && !checkingPieceSet.has(move.to)),
+  };
+}
