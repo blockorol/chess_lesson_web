@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CheckAndCheckmateLesson } from "@/components/check-and-checkmate-lesson";
+import { HowToCheckmateLesson } from "@/components/how-to-checkmate-lesson";
 import { LessonIntro } from "@/components/lesson-intro";
 import { LessonSubtopics } from "@/components/lesson-subtopics";
 import { MaterialAdvantageLesson } from "@/components/material-advantage-lesson";
@@ -77,6 +78,11 @@ export default async function LessonPage({ params, searchParams }: LessonPagePro
           <>
             <LessonIntro slug={lesson.slug} content={lesson.content} />
             <CheckAndCheckmateLesson showAdminLinks={resolvedSearchParams.admin === "true"} />
+          </>
+        ) : lesson.slug === "how-to-checkmate" ? (
+          <>
+            <LessonIntro slug={lesson.slug} content={lesson.content} />
+            <HowToCheckmateLesson />
           </>
         ) : lesson.subtopics ? (
           <>
